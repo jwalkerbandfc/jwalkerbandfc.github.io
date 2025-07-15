@@ -1,1 +1,74 @@
-hello world
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Canvas Modules Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+    }
+    h2 { color: #003366; }
+    .module {
+      margin-bottom: 2rem;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>📘 Canvas Modules Viewer</h1>
+
+  <label for="token">Canvas Access Token:</label><br>
+  <input type="password" id="token" placeholder="Paste your token here" style="width: 100%;"><br><br>
+
+  <label for="domain">Canvas Domain:</label><br>
+  <input type="text" id="domain" value="https://bfc.instructure.com" style="width: 100%;"><br><br>
+
+  <label for="courseId">Course ID:</label><br>
+  <input type="text" id="courseId" value="9968" style="width: 100%;"><br><br>
+
+  <button onclick="loadModules()">📥 Load Modules</button>
+
+  <div id="output" style="margin-top: 2rem;"></div>
+
+  <script>
+    async function loadModules() {
+      const token = document.getElementById('token').value;
+      const domain = document.getElementById('domain').value;
+      const courseId = document.getElementById('courseId').value;
+      const output = document.getElementById('output');
+      output.innerHTML = '<p>Loading...</p>';
+
+      const headers = {
+        'Authorization': 'Bearer ' + token
+      };
+
+      try {
+        const modulesRes = await fetch(`${domain}/api/v1/courses/${courseId}/modules?per_page=100`, { headers });
+        const modules = await modulesRes.json();
+
+        let html = '';
+        for (const mod of modules) {
+          html += `<div class="module"><h2>${mod.name}</h2><ul>`;
+
+          const itemsRes = await fetch(`${domain}/api/v1/courses/${courseId}/modules/${mod.id}/items?per_page=100`, { headers });
+          const items = await itemsRes.json();
+
+          for (const item of items) {
+            html += `<li><a href="${item.html_url}" target="_blank">${item.title}</a></li>`;
+          }
+
+          html += '</ul></div>';
+        }
+
+        output.innerHTML = html;
+
+      } catch (error) {
+        output.innerHTML = `<p style="color:red;">❌ Error: ${error.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
