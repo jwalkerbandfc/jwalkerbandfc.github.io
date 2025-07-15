@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Canvas Modules Viewer</title>
@@ -8,80 +8,122 @@
       font-family: Arial, sans-serif;
       max-width: 800px;
       margin: 2rem auto;
+      padding: 1rem;
     }
-    h2 { color: #003366; }
+
+    label {
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      background-color: #003366;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #005199;
+    }
+
     .module {
       margin-bottom: 2rem;
       border-bottom: 1px solid #ccc;
       padding-bottom: 1rem;
     }
+
+    h2 {
+      color: #003366;
+    }
+
+    #output {
+      margin-top: 2rem;
+    }
+
+    .error {
+      color: red;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
+
   <h1>📘 Canvas Modules Viewer</h1>
 
-  <label for="token">Canvas Access Token:</label><br>
-  <input type="password" id="token" placeholder="Paste your token here" style="width: 100%;"><br><br>
+  <label for="token">Canvas Access Token:</label>
+  <input type="password" id="token" placeholder="Paste your token here">
 
-  <label for="domain">Canvas Domain:</label><br>
-  <input type="text" id="domain" value="https://bfc.instructure.com" style="width: 100%;"><br><br>
+  <label for="domain">Canvas Domain:</label>
+  <input type="text" id="domain" value="https://bfc.instructure.com">
 
-  <label for="courseId">Course ID:</label><br>
-  <input type="text" id="courseId" value="9968" style="width: 100%;"><br><br>
+  <label for="courseId">Course ID:</label>
+  <input type="text" id="courseId" value="9968">
 
   <button onclick="loadModules()">📥 Load Modules</button>
 
-  <div id="output" style="margin-top: 2rem;"></div>
+  <div id="output"></div>
 
   <script>
     async function loadModules() {
-  const token = document.getElementById('token').value;
-  const domain = document.getElementById('domain').value;
-  const courseId = document.getElementById('courseId').value;
-  const output = document.getElementById('output');
-  output.innerHTML = '<p>Loading...</p>';
+      const token = document.getElementById('token').value.trim();
+      const domain = document.getElementById('domain').value.trim();
+      const courseId = document.getElementById('courseId').value.trim();
+      const output = document.getElementById('output');
 
-  const headers = {
-    'Authorization': 'Bearer ' + token
-  };
+      output.innerHTML = '<p>Loading modules...</p>';
 
-  try {
-    const response = await fetch(`${domain}/api/v1/courses/${courseId}/modules?per_page=100`, { headers });
+      const headers = {
+        'Authorization': 'Bearer ' + token
+      };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status} ${response.statusText}\n${errorText}`);
-    }
+      try {
+        const res = await fetch(`${domain}/api/v1/courses/${courseId}/modules?per_page=100`, { headers });
 
-    const modules = await response.json();
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`HTTP ${res.status} ${res.statusText}\n${errorText}`);
+        }
 
-    let html = '';
-    for (const mod of modules) {
-      html += `<div class="module"><h2>${mod.name}</h2><ul>`;
+        const modules = await res.json();
+        if (!modules.length) {
+          output.innerHTML = `<p>No modules found for course ID <strong>${courseId}</strong>.</p>`;
+          return;
+        }
 
-      const itemsRes = await fetch(`${domain}/api/v1/courses/${courseId}/modules/${mod.id}/items?per_page=100`, { headers });
+        let html = '';
+        for (const mod of modules) {
+          html += `<div class="module"><h2>${mod.name}</h2><ul>`;
 
-      if (!itemsRes.ok) {
-        const itemError = await itemsRes.text();
-        throw new Error(`Failed to load items for module ${mod.id}.\nHTTP ${itemsRes.status} ${itemsRes.statusText}\n${itemError}`);
+          const itemsRes = await fetch(`${domain}/api/v1/courses/${courseId}/modules/${mod.id}/items?per_page=100`, { headers });
+
+          if (!itemsRes.ok) {
+            const itemError = await itemsRes.text();
+            throw new Error(`Error fetching items for module: ${mod.name}\nHTTP ${itemsRes.status} ${itemsRes.statusText}\n${itemError}`);
+          }
+
+          const items = await itemsRes.json();
+          for (const item of items) {
+            html += `<li><a href="${item.html_url}" target="_blank">${item.title}</a></li>`;
+          }
+
+          html += '</ul></div>';
+        }
+
+        output.innerHTML = html;
+
+      } catch (error) {
+        output.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+        console.error('Full error details:', error);
       }
-
-      const items = await itemsRes.json();
-      for (const item of items) {
-        html += `<li><a href="${item.html_url}" target="_blank">${item.title}</a></li>`;
-      }
-
-      html += '</ul></div>';
     }
-
-    output.innerHTML = html;
-
-  } catch (error) {
-    output.innerHTML = `<p style="color:red;">❌ Error: ${error.message}</p>`;
-    console.error("Fetch error details:", error);
-  }
-}
-
   </script>
+
 </body>
 </html>
